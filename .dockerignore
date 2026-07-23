@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.env.*
+node_modules
+npm-debug.log*
+tests
+test.js
+test-*.js
+AUDIT_REPORT.md
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
+SECURITY.md
+data
