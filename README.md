@@ -382,7 +382,7 @@ Once connected, just talk to your AI tool normally. Here are some things you can
 
 > "What action plans do I have set up?"
 
-## All 160 Available Tools
+## All 164 Available Tools
 
 <details>
 <summary>Click to expand full tool list</summary>
