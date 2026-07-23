@@ -32,6 +32,7 @@ jobs:
           node tests/api-contract.mjs
           node tests/safe-mode.mjs
           node tests/import-overlay.mjs
+      - uses: docker/setup-buildx-action@v3
       - name: Validate container build
         uses: docker/build-push-action@v6
         with:
