@@ -57,6 +57,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
+      - name: Compute lowercase image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - name: Build and push immutable image (built + cached in GHA)
         uses: docker/build-push-action@v6
         with:
@@ -64,8 +67,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}
+            ${{ steps.img.outputs.name }}:latest
           cache-from: type=gha,scope=followupboss-mcp
           cache-to: type=gha,mode=max,scope=followupboss-mcp
           provenance: true
@@ -81,7 +84,7 @@ jobs:
           az containerapp update \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.CONTAINER_APP_NAME }}" \
-            --image "ghcr.io/${{ github.repository }}:${{ github.sha }}" \
+            --image "${{ steps.img.outputs.name }}:${{ github.sha }}" \
             --min-replicas 1 \
             --max-replicas 1
       - name: Verify health
