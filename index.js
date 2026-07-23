@@ -186,9 +186,23 @@ function translateRelationshipArgs(args) {
   return out;
 }
 
+// FUB expects appointment attendees as invitees:[{personId,...}] for contacts
+// or [{userId,...}] for FUB users. It SILENTLY DROPS the {type,id} shape, so
+// normalize every entry (and convenience personId/userId) into FUB's form.
+function normalizeInvitee(inv) {
+  if (inv == null || typeof inv !== 'object') return null;
+  if (inv.personId !== undefined || inv.userId !== undefined) return inv; // already correct
+  if (inv.id !== undefined && inv.type) {
+    const key = inv.type === 'user' ? 'userId' : 'personId';
+    const { type, id, ...extra } = inv;
+    return { [key]: id, ...extra };
+  }
+  return inv;
+}
+
 function translateAppointmentArgs(args) {
   const {
-    startTime, endTime, appointmentTypeId, appointmentOutcomeId, personId,
+    startTime, endTime, appointmentTypeId, appointmentOutcomeId, personId, userId,
     ...rest
   } = args;
   const out = { ...rest };
@@ -196,11 +210,13 @@ function translateAppointmentArgs(args) {
   if (endTime !== undefined && out.end === undefined) out.end = endTime;
   if (appointmentTypeId !== undefined && out.typeId === undefined) out.typeId = appointmentTypeId;
   if (appointmentOutcomeId !== undefined && out.outcomeId === undefined) out.outcomeId = appointmentOutcomeId;
-  if (personId !== undefined) {
-    const list = Array.isArray(out.invitees) ? [...out.invitees] : [];
-    list.push({ type: 'person', id: personId });
-    out.invitees = list;
-  }
+
+  const invitees = Array.isArray(out.invitees)
+    ? out.invitees.map(normalizeInvitee).filter(Boolean)
+    : [];
+  if (personId !== undefined) invitees.push({ personId });
+  if (userId !== undefined) invitees.push({ userId });
+  if (invitees.length) out.invitees = invitees;
   return out;
 }
 
@@ -1391,15 +1407,17 @@ export const TOOL_DEFINITIONS = [
 },
 {
   "name": "createAppointment",
-  "description": "Create an appointment. FUB uses start/end (not startTime/endTime), typeId/outcomeId (not appointmentTypeId/appointmentOutcomeId), and invitees:[{type:'person'|'user',id}] (personId is NOT a top-level field).",
+  "description": "Create an appointment. FUB uses start/end (not startTime/endTime), typeId/outcomeId (not appointmentTypeId/appointmentOutcomeId). Attendees go in invitees using FUB's shape: {personId:int} for a contact or {userId:int} for a FUB user (NOT {type,id} — FUB silently drops that). For convenience you may pass top-level personId and/or userId and they are mapped into invitees automatically; FUB fills in the attendee's name/email. Include the assigned agent's userId so it lands on their synced calendar.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "title": { "type": "string", "description": "Appointment title (required)" },
-      "start": { "type": "string", "description": "Start ISO 8601 (required)" },
-      "end": { "type": "string", "description": "End ISO 8601 (required)" },
+      "start": { "type": "string", "description": "Start in UTC ISO 8601, e.g. 2026-07-24T20:00:00Z (required). FUB ignores non-UTC offsets and treats the wall-clock time as UTC, so convert local time to UTC first (3 PM US-Central = 20:00Z)." },
+      "end": { "type": "string", "description": "End in UTC ISO 8601, e.g. 2026-07-24T21:00:00Z (required). Same UTC rule as start." },
       "description": { "type": "string", "description": "Description" },
-      "invitees": { "type": "array", "description": "Array of {type:'person'|'user', id:int}", "items": { "type": "object" } },
+      "invitees": { "type": "array", "description": "Attendees in FUB shape: [{personId:int}] for contacts, [{userId:int}] for FUB users. Legacy {type:'person'|'user',id} is auto-converted.", "items": { "type": "object" } },
+      "personId": { "type": "number", "description": "Convenience: a contact to attend; mapped into invitees as {personId}." },
+      "userId": { "type": "number", "description": "Convenience: a FUB user (agent) to attend; mapped into invitees as {userId}." },
       "allDay": { "type": "boolean" },
       "location": { "type": "string", "description": "Location" },
       "typeId": { "type": "number", "description": "Appointment type ID" },
@@ -1422,7 +1440,7 @@ export const TOOL_DEFINITIONS = [
 },
 {
   "name": "updateAppointment",
-  "description": "Update an appointment. FUB requires `start` and `end` on EVERY update (even partial edits) or it returns 'Valid Start and End dates are required'. Refetch with getAppointment first if you only have the id.",
+  "description": "Update an appointment. FUB requires `start` and `end` on EVERY update (even partial edits) or it returns 'Valid Start and End dates are required'. Refetch with getAppointment first if you only have the id. Attendees use FUB's invitees shape: {personId:int} for a contact, {userId:int} for a FUB user (NOT {type,id}); top-level personId/userId are also accepted and mapped in.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -1431,7 +1449,9 @@ export const TOOL_DEFINITIONS = [
       "start": { "type": "string", "description": "Start ISO" },
       "end": { "type": "string", "description": "End ISO" },
       "description": { "type": "string" },
-      "invitees": { "type": "array", "items": { "type": "object" } },
+      "invitees": { "type": "array", "description": "Attendees in FUB shape: [{personId:int}] or [{userId:int}]. Legacy {type,id} is auto-converted.", "items": { "type": "object" } },
+      "personId": { "type": "number", "description": "Convenience: a contact to attend; mapped into invitees as {personId}." },
+      "userId": { "type": "number", "description": "Convenience: a FUB user to attend; mapped into invitees as {userId}." },
       "allDay": { "type": "boolean" },
       "location": { "type": "string" },
       "typeId": { "type": "number", "description": "Type ID" },
