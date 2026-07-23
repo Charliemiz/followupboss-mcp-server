@@ -1,6 +1,6 @@
 # Follow Up Boss MCP Server — Built for Realtors
 
-> Talk to your Follow Up Boss CRM in plain English from Claude AI (or any MCP-compatible tool). 160 tools covering 100% of the official API, plus `about`/`help` meta tools. Built by a working real estate broker, not a dev shop.
+> Talk to your Follow Up Boss CRM in plain English from Claude AI (or any MCP-compatible tool). 164 tools covering the official API, plus convenience and `about`/`help` meta tools. Built by a working real estate broker, not a dev shop.
 
 **Built by [Ed Neuhaus](https://neuhausre.com) — broker / owner at [Neuhaus Realty Group](https://neuhausre.com) in Austin, Texas.** Licensed real estate broker since 2009, 19+ years in the business. I built this because I wanted to talk to my own FUB account in plain English. It's free for self-host use under the [Elastic License 2.0](LICENSE).
 
@@ -760,7 +760,7 @@ Contributions are welcome! Here's how:
 6. Push: `git push origin my-feature`
 7. Open a Pull Request
 
-Please keep the code style consistent and make sure all 160 tools continue to work.
+Please keep the code style consistent and make sure all 164 tools continue to work.
 
 ## License
 

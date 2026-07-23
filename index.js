@@ -3,7 +3,7 @@
 /*!
  * Follow Up Boss MCP Server
  *
- * A Model Context Protocol server providing 160 tools for the
+ * A Model Context Protocol server providing 164 tools for the
  * Follow Up Boss CRM API. Self-host for free; ask before reselling.
  *
  * Copyright (c) 2026 Ed Neuhaus / Neuhaus Realty Group, LLC
@@ -241,7 +241,7 @@ function handleApiError(error) {
 }
 
 // ---------------------------------------------------------------------------
-// Tool Definitions (160 tools — 152 core + 5 convenience + 2 meta)
+// Tool Definitions (164 tools: 157 API endpoints + 5 convenience + 2 meta)
 // ---------------------------------------------------------------------------
 
 export const TOOL_DEFINITIONS = [
@@ -452,6 +452,15 @@ export const TOOL_DEFINITIONS = [
     "properties": {
       "personId": { "type": "number", "description": "Person ID to claim" }
     },
+    "required": ["personId"]
+  }
+},
+{
+  "name": "ignoreUnclaimedPerson",
+  "description": "Confirm that a First To Claim offer was received but not claimed.",
+  "inputSchema": {
+    "type": "object",
+    "properties": { "personId": { "type": "number", "description": "Person ID of the unclaimed lead" } },
     "required": ["personId"]
   }
 },
@@ -2062,17 +2071,33 @@ export const TOOL_DEFINITIONS = [
 // ==================== INBOX APPS ====================
 {
   "name": "inboxAppAddMessage",
-  "description": "Add a message to an inbox app conversation",
+  "description": "Add a message to an existing or new Inbox App conversation.",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "conversationId": { "type": "string", "description": "Conversation ID" },
-      "message": { "type": "string", "description": "Message content" },
-      "sender": { "type": "object", "description": "Sender info" },
-      "timestamp": { "type": "string", "description": "ISO timestamp" }
+      "inboxAppId": { "type": "string" }, "externalConversationId": { "type": "string" },
+      "externalMessageId": { "type": "string" }, "replyToExternalMessageId": { "type": "string" },
+      "sentAt": { "type": "string" }, "subject": { "type": "string" }, "message": { "type": "string" },
+      "isIncoming": { "type": "boolean" }, "sender": { "type": "object" },
+      "isAutomation": { "type": "boolean", "default": false }, "person": { "type": "object" },
+      "owner": { "type": "object" },
+      "deliveryStatus": { "type": "string", "enum": ["Sent", "Delivered", "Read", "Not Delivered"] },
+      "deliveryStatusErrorMessage": { "type": "string" },
+      "attachments": { "type": "array", "items": { "type": "object" } },
+      "richObjects": { "type": "array", "items": { "type": "string" } }
     },
-    "required": ["conversationId", "message"]
+    "required": ["inboxAppId", "externalConversationId", "externalMessageId", "message", "isIncoming", "sender"]
   }
+},
+{
+  "name": "inboxAppAddSystemMessage",
+  "description": "Add a system confirmation message to an Inbox App conversation.",
+  "inputSchema": { "type": "object", "properties": {
+    "inboxAppId": { "type": "string" }, "externalConversationId": { "type": "string" },
+    "externalMessageId": { "type": "string" }, "message": { "type": "string" },
+    "type": { "type": "string", "enum": ["success", "info", "error"] },
+    "person": { "type": "object" }, "owner": { "type": "object" }
+  }, "required": ["inboxAppId", "externalConversationId", "externalMessageId", "message"] }
 },
 {
   "name": "inboxAppUpdateMessage",
@@ -2080,10 +2105,12 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "messageId": { "type": "string", "description": "Message ID" },
-      "message": { "type": "string", "description": "Updated message" }
+      "inboxAppId": { "type": "string" }, "id": { "type": "number" },
+      "externalMessageId": { "type": "string" },
+      "deliveryStatus": { "type": "string", "enum": ["Sent", "Delivered", "Read", "Not Delivered"] },
+      "deliveryStatusErrorMessage": { "type": "string" }
     },
-    "required": ["messageId", "message"]
+    "required": ["inboxAppId"]
   }
 },
 {
@@ -2092,10 +2119,10 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "conversationId": { "type": "string", "description": "Conversation ID" },
-      "note": { "type": "string", "description": "Note content" }
+      "inboxAppId": { "type": "string" }, "externalConversationId": { "type": "string" },
+      "body": { "type": "string" }, "user": { "type": "object" }
     },
-    "required": ["conversationId", "note"]
+    "required": ["inboxAppId", "externalConversationId", "body"]
   }
 },
 {
@@ -2104,10 +2131,12 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "conversationId": { "type": "string", "description": "Conversation ID" },
-      "status": { "type": "string", "description": "New status" }
+      "inboxAppId": { "type": "string" }, "extConversationId": { "type": "string" },
+      "subject": { "type": "string" }, "archived": { "type": "boolean" },
+      "permanentlyArchived": { "type": "boolean" }, "person": { "type": "object" },
+      "assignedUserId": { "type": "number" }, "assignedInboxId": { "type": "number" }
     },
-    "required": ["conversationId"]
+    "required": ["inboxAppId", "extConversationId"]
   }
 },
 {
@@ -2116,9 +2145,9 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "conversationId": { "type": "string", "description": "Conversation ID" }
+      "inboxAppId": { "type": "string" }, "extConversationId": { "type": "string" }
     },
-    "required": ["conversationId"]
+    "required": ["inboxAppId", "extConversationId"]
   }
 },
 {
@@ -2127,10 +2156,13 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "conversationId": { "type": "string", "description": "Conversation ID" },
-      "personId": { "type": "number", "description": "Person ID to add" }
+      "inboxAppId": { "type": "string" }, "extConversationId": { "type": "string" },
+      "personId": { "type": "number" }, "userId": { "type": "number" },
+      "relationshipId": { "type": "number" }, "name": { "type": "string" },
+      "email": { "type": "string" }, "phone": { "type": "string" },
+      "isAutomation": { "type": "boolean", "default": false }
     },
-    "required": ["conversationId", "personId"]
+    "required": ["inboxAppId", "extConversationId"]
   }
 },
 {
@@ -2139,9 +2171,10 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "id": { "type": "number", "description": "Participant ID" }
+      "inboxAppId": { "type": "string" }, "extConversationId": { "type": "string" },
+      "participantId": { "type": "string" }
     },
-    "required": ["id"]
+    "required": ["inboxAppId", "extConversationId", "participantId"]
   }
 },
 {
@@ -2163,15 +2196,17 @@ export const TOOL_DEFINITIONS = [
   "inputSchema": {
     "type": "object",
     "properties": {
-      "id": { "type": "number", "description": "Installation ID" }
+      "inboxAppId": { "type": "string", "description": "Installed Inbox App ID" }
     },
-    "required": ["id"]
+    "required": ["inboxAppId"]
   }
 },
 {
   "name": "listInboxAppInstallations",
   "description": "List inbox app installations. Requires a registered third-party system (FUB_SYSTEM + FUB_SYSTEM_KEY). On unregistered accounts FUB returns 404 'Requested resource was not found'.",
-  "inputSchema": { "type": "object", "properties": {}, "required": [] }
+  "inputSchema": { "type": "object", "properties": {
+    "publishedInboxAppId": { "type": "number", "description": "Published Inbox App ID" }
+  }, "required": ["publishedInboxAppId"] }
 },
 
 // ==================== REACTIONS ====================
@@ -2223,6 +2258,18 @@ export const TOOL_DEFINITIONS = [
     },
     "required": ["id"]
   }
+}
+
+,// ==================== RATE LIMITS ====================
+{
+  "name": "getRateLimitUsage",
+  "description": "Get trailing 24-hour API usage and current limits for the registered system.",
+  "inputSchema": { "type": "object", "properties": {}, "required": [] }
+},
+{
+  "name": "getRateLimitLimits",
+  "description": "Get current API rate limits for the registered system.",
+  "inputSchema": { "type": "object", "properties": {}, "required": [] }
 }
 
 ,
@@ -2423,6 +2470,10 @@ export async function handleToolCall(name, rawArgs) {
     case 'claimPerson': {
       const response = await fubApi.post('/people/claim', args);
       return response.data;
+    }
+    case 'ignoreUnclaimedPerson': {
+      await fubApi.post('/people/ignoreUnclaimed', args);
+      return { success: true, message: `Unclaimed lead ${args.personId} ignored` };
     }
 
     // ==================== PERSON ATTACHMENTS ====================
@@ -3042,56 +3093,68 @@ export async function handleToolCall(name, rawArgs) {
     }
 
     // ==================== INBOX APPS ====================
-    // FUB inbox app endpoints — corrected paths per docs.followupboss.com/reference.
-    // Old "/inboxApps/addMessage" style was wrong (no such collection); FUB uses
-    // /inboxApps/messages, /inboxApps/notes, /inboxApps/conversations/:id, etc.
+    // FUB Inbox App paths include the installed Inbox App ID and, for
+    // conversation operations, the integration's external conversation ID.
     case 'inboxAppAddMessage': {
-      const response = await fubApi.post('/inboxApps/messages', args);
+      requireSystemCreds('inboxAppAddMessage');
+      const { inboxAppId, ...body } = args;
+      const response = await fubApi.post(`/inboxApps/${inboxAppId}/message`, body);
+      return response.data;
+    }
+    case 'inboxAppAddSystemMessage': {
+      requireSystemCreds('inboxAppAddSystemMessage');
+      const { inboxAppId, ...body } = args;
+      const response = await fubApi.post(`/inboxApps/${inboxAppId}/systemMessage`, body);
       return response.data;
     }
     case 'inboxAppUpdateMessage': {
-      const { messageId, id, ...body } = args;
-      const mid = messageId || id;
-      const response = await fubApi.put(`/inboxApps/messages/${mid}`, body);
+      requireSystemCreds('inboxAppUpdateMessage');
+      const { inboxAppId, ...body } = args;
+      const response = await fubApi.put(`/inboxApps/${inboxAppId}/message`, body);
       return response.data;
     }
     case 'inboxAppAddNote': {
-      const response = await fubApi.post('/inboxApps/notes', args);
+      requireSystemCreds('inboxAppAddNote');
+      const { inboxAppId, ...body } = args;
+      const response = await fubApi.post(`/inboxApps/${inboxAppId}/note`, body);
       return response.data;
     }
     case 'inboxAppUpdateConversation': {
-      const { conversationId, id, ...body } = args;
-      const cid = conversationId || id;
-      const response = await fubApi.put(`/inboxApps/conversations/${cid}`, body);
+      requireSystemCreds('inboxAppUpdateConversation');
+      const { inboxAppId, extConversationId, ...body } = args;
+      const response = await fubApi.put(`/inboxApps/${inboxAppId}/conversations/${extConversationId}`, body);
       return response.data;
     }
     case 'inboxAppGetParticipants': {
-      const response = await fubApi.get('/inboxApps/participants', { params: args });
+      requireSystemCreds('inboxAppGetParticipants');
+      const response = await fubApi.get(`/inboxApps/${args.inboxAppId}/conversations/${args.extConversationId}/participants`);
       return response.data;
     }
     case 'inboxAppCreateParticipant': {
-      const response = await fubApi.post('/inboxApps/participants', args);
+      requireSystemCreds('inboxAppCreateParticipant');
+      const { inboxAppId, extConversationId, ...body } = args;
+      const response = await fubApi.post(`/inboxApps/${inboxAppId}/conversations/${extConversationId}/participants`, body);
       return response.data;
     }
     case 'inboxAppDeleteParticipant': {
-      const { id, participantId } = args;
-      const pid = id || participantId;
-      await fubApi.delete(`/inboxApps/participants/${pid}`);
-      return { success: true, message: `Participant ${pid} removed` };
+      requireSystemCreds('inboxAppDeleteParticipant');
+      const { inboxAppId, extConversationId, participantId } = args;
+      await fubApi.delete(`/inboxApps/${inboxAppId}/conversations/${extConversationId}/participants/${participantId}`);
+      return { success: true, message: `Participant ${participantId} removed` };
     }
     case 'inboxAppInstall': {
+      requireSystemCreds('inboxAppInstall');
       const response = await fubApi.post('/inboxApps/install', args);
       return response.data;
     }
     case 'inboxAppDeactivate': {
-      // FUB deactivates by installation id, not a fixed /deactivate path.
-      const { id } = args;
-      if (!id) throw new Error('inboxAppDeactivate requires installation id');
-      await fubApi.delete(`/inboxApps/${id}`);
-      return { success: true, message: `Inbox app ${id} deactivated` };
+      requireSystemCreds('inboxAppDeactivate');
+      await fubApi.delete(`/inboxApps/${args.inboxAppId}`);
+      return { success: true, message: `Inbox app ${args.inboxAppId} deactivated` };
     }
     case 'listInboxAppInstallations': {
-      const response = await fubApi.get('/inboxApps');
+      requireSystemCreds('listInboxAppInstallations');
+      const response = await fubApi.get(`/inboxApps/installedApps/${args.publishedInboxAppId}`);
       return response.data;
     }
 
@@ -3114,6 +3177,18 @@ export async function handleToolCall(name, rawArgs) {
     // ==================== THREADED REPLIES ====================
     case 'getThreadedReplies': {
       const response = await fubApi.get(`/threadedReplies/${args.id}`);
+      return response.data;
+    }
+
+    // ==================== RATE LIMITS ====================
+    case 'getRateLimitUsage': {
+      requireSystemCreds('getRateLimitUsage');
+      const response = await fubApi.get('/rateLimit/usage');
+      return response.data;
+    }
+    case 'getRateLimitLimits': {
+      requireSystemCreds('getRateLimitLimits');
+      const response = await fubApi.get('/rateLimit/limits');
       return response.data;
     }
 
